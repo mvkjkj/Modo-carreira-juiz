@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador de Carreira de Árbitro - VAR & Apito de Ouro</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            darkBg: '#0b0f17',
+            cardBg: '#151b26',
+            cardBorder: '#232d3f',
+            gold: '#f59e0b',
+            varYellow: '#eab308',
+            varBlue: '#3b82f6',
+            varRed: '#ef4444',
+            varGreen: '#22c55e',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #0b0f17;
+      color: #e2e8f0;
+      user-select: none;
+    }
+    
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0f17;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #232d3f;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #3b82f6;
+    }
+
+    /* Pulse Animations */
+    @keyframes pulse-fast {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.8; transform: scale(1.02); }
+    }
+    .animate-pulse-fast {
+      animation: pulse-fast 1s infinite;
+    }
+
+    /* Stripes for VAR Screen */
+    .bg-scanlines {
+      background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%, 
+        rgba(0, 0, 0, 0.25) 50%
+      ), linear-gradient(
+        90deg,
+        rgba(255, 0, 0, 0.06),
+        rgba(0, 255, 0, 0.02),
+        rgba(0, 0, 255, 0.06)
+      );
+      background-size: 100% 4px, 6px 100%;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-start p-2 sm:p-4 md:p-6 text-slate-200">
+
+  <!-- MAIN WRAPPER CONTAINER -->
+  <div id="app-container" class="w-full max-w-5xl flex flex-col gap-4">
+
+    <!-- TOP HEADER / CARREIRA STATUS -->
+    <header class="bg-cardBg border border-cardBorder rounded-xl p-4 shadow-xl flex flex-col gap-4">
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-cardBorder pb-3">
+        <!-- Referee Profile -->
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center text-slate-950 font-black text-xl shadow-lg shadow-amber-500/20">
+            <i class="fa-solid fa-whistle text-2xl"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="text-lg font-bold text-white tracking-wide" id="ref-name">Árbitro Carlos Silva</h1>
+              <span id="ref-badge" class="px-2 py-0.5 rounded text-xs font-black bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                SÉRIE C
+              </span>
+            </div>
+            <p class="text-xs text-slate-400" id="ref-title">Árbitro de Campo Aspirante</p>
+          </div>
+        </div>
+
+        <!-- Wallet and Quick Stats -->
+        <div class="flex flex-wrap items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+          <div class="bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-800 text-center">
+            <span class="block text-[10px] text-slate-400 font-bold uppercase">Carteira</span>
+            <span class="text-sm font-extrabold text-emerald-400" id="stat-wallet">R$ 1.500</span>
+          </div>
+          <div class="bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-800 text-center">
+            <span class="block text-[10px] text-slate-400 font-bold uppercase">Avaliação CBF</span>
+            <span class="text-sm font-extrabold text-amber-400" id="stat-rating">78.5</span>
+          </div>
+          <div class="bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-800 text-center">
+            <span class="block text-[10px] text-slate-400 font-bold uppercase">Acertos</span>
+            <span class="text-sm font-extrabold text-blue-400" id="stat-accuracy">100%</span>
+          </div>
+          <div class="bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-800 text-center">
+            <span class="block text-[10px] text-slate-400 font-bold uppercase">Partidas</span>
+            <span class="text-sm font-extrabold text-purple-400" id="stat-matches">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Navigation Buttons -->
+      <nav class="flex items-center justify-between gap-2 overflow-x-auto pb-1">
+        <div class="flex items-center gap-2">
+          <button onclick="openModal('shop')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 flex items-center gap-2 transition border border-slate-700">
+            <i class="fa-solid fa-cart-shopping text-blue-400"></i> Loja de Equipamentos
+          </button>
+          <button onclick="openModal('training')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 flex items-center gap-2 transition border border-slate-700">
+            <i class="fa-solid fa-graduation-cap text-amber-400"></i> Cursos & Regras
+          </button>
+          <button onclick="openModal('career')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 flex items-center gap-2 transition border border-slate-700">
+            <i class="fa-solid fa-award text-emerald-400"></i> Estatísticas
+          </button>
+        </div>
+
+        <button id="btn-start-match" onclick="startNewMatch()" class="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white flex items-center gap-2 shadow-lg shadow-emerald-900/40 transition">
+          <i class="fa-solid fa-play"></i> Iniciar Próxima Partida
+        </button>
+      </nav>
+    </header>
+
+    <!-- MAIN GAME / MATCH DISPLAY SCREEN -->
+    <main id="match-screen" class="bg-cardBg border border-cardBorder rounded-xl p-4 sm:p-6 shadow-2xl flex flex-col gap-6 relative overflow-hidden">
+      
+      <!-- TOP MATCH SCOREBOARD -->
+      <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+        
+        <!-- Home Team -->
+        <div class="flex items-center gap-3 w-full sm:w-1/3 justify-start">
+          <div id="home-shield" class="w-10 h-10 rounded-full bg-red-700 border-2 border-red-500 flex items-center justify-center font-black text-white text-sm shadow">
+            APA
+          </div>
+          <div>
+            <h2 id="home-name" class="font-bold text-sm sm:text-base text-white">Aparecidense</h2>
+            <span class="text-[11px] text-slate-400">Mandante</span>
+          </div>
+        </div>
+
+        <!-- Score & Time Center -->
+        <div class="flex flex-col items-center justify-center w-full sm:w-1/3 border-y sm:border-y-0 sm:border-x border-slate-800 py-2 sm:py-0">
+          <span id="match-timer" class="text-xs font-bold text-blue-400 tracking-wider">00' - 1º Tempo</span>
+          <div class="flex items-center gap-4 font-black text-3xl sm:text-4xl text-white tracking-widest my-0.5">
+            <span id="score-home">0</span>
+            <span class="text-slate-600 text-2xl">:</span>
+            <span id="score-away">0</span>
+          </div>
+          <div class="flex items-center gap-3 text-[11px] text-slate-400">
+            <span id="stadium-weather"><i class="fa-solid fa-cloud-rain text-blue-400"></i> Ensolarado</span>
+            <span>•</span>
+            <span id="stadium-name">Estádio Aníbal Toledo</span>
+          </div>
+        </div>
+
+        <!-- Away Team -->
+        <div class="flex items-center gap-3 w-full sm:w-1/3 justify-end text-right">
+          <div>
+            <h2 id="away-name" class="font-bold text-sm sm:text-base text-white">Anápolis</h2>
+            <span class="text-[11px] text-slate-400">Visitante</span>
+          </div>
+          <div id="away-shield" class="w-10 h-10 rounded-full bg-blue-900 border-2 border-blue-600 flex items-center justify-center font-black text-white text-sm shadow">
+            ANA
+          </div>
+        </div>
+      </div>
+
+      <!-- MATCH METERS (Tension & Control) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+        <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-800/80 flex flex-col gap-1.5">
+          <div class="flex justify-between font-medium">
+            <span class="text-slate-400"><i class="fa-solid fa-temperature-full text-rose-500 mr-1"></i> Tensão da Partida:</span>
+            <span id="label-tension" class="font-bold text-amber-400">Normal (30%)</span>
+          </div>
+          <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+            <div id="bar-tension" class="bg-gradient-to-r from-emerald-500 via-amber-500 to-rose-600 h-full transition-all duration-500" style="width: 30%"></div>
+          </div>
+        </div>
+
+        <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-800/80 flex flex-col gap-1.5">
+          <div class="flex justify-between font-medium">
+            <span class="text-slate-400"><i class="fa-solid fa-hand-fist text-blue-400 mr-1"></i> Controle do Árbitro:</span>
+            <span id="label-control" class="font-bold text-emerald-400">Excelente (90%)</span>
+          </div>
+          <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+            <div id="bar-control" class="bg-gradient-to-r from-rose-600 via-amber-500 to-emerald-500 h-full transition-all duration-500" style="width: 90%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DYNAMIC INCIDENT & DECISION PANEL -->
+      <div id="incident-box" class="bg-gradient-to-b from-slate-900 to-slate-950 border-2 border-slate-800 rounded-xl p-5 flex flex-col gap-4 relative">
+        
+        <!-- Idle Match State Message -->
+        <div id="idle-message" class="py-12 flex flex-col items-center justify-center text-center gap-3">
+          <i class="fa-solid fa-whistle text-4xl text-slate-700 animate-bounce"></i>
+          <div>
+            <h3 class="text-lg font-bold text-slate-300">Partida Não Iniciada</h3>
+            <p class="text-xs text-slate-500">Clique em "Iniciar Próxima Partida" no menu superior para apitar!</p>
+          </div>
+        </div>
+
+        <!-- Active Decision Content (Hidden by default) -->
+        <div id="active-incident" class="hidden flex-col gap-4">
+          
+          <!-- Event Header with Timer Countdown -->
+          <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+            <div class="flex items-center gap-2">
+              <span id="incident-min" class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-black">
+                43'
+              </span>
+              <h3 id="incident-title" class="font-bold text-base text-amber-400">
+                Possível Pênalti / Entrada Falta Dura
+              </h3>
+            </div>
+            
+            <!-- Decision Countdown Timer -->
+            <div id="countdown-wrapper" class="flex items-center gap-2 bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700">
+              <i class="fa-solid fa-stopwatch text-amber-400"></i>
+              <span class="text-xs text-slate-400 font-semibold">Tempo:</span>
+              <span id="decision-timer" class="font-black text-sm text-white">10s</span>
+            </div>
+          </div>
+
+          <!-- Description Text -->
+          <p id="incident-desc" class="text-sm text-slate-300 leading-relaxed bg-slate-900/90 p-3.5 rounded-lg border border-slate-800">
+            O atacante do Anápolis invade a grande área e cai após contato corporal com o zagueiro da Aparecidense! A torcida e os jogadores pedem falta imediatamente!
+          </p>
+
+          <!-- DECISION BUTTONS GRID -->
+          <div id="decision-options" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-2">
+            <!-- Dynamic Options Injected via JS -->
+          </div>
+        </div>
+
+        <!-- VAR MONITOR REPLAY SIMULATOR SCREEN (Hidden by default) -->
+        <div id="var-screen" class="hidden flex-col gap-4 bg-slate-950 p-4 rounded-xl border-2 border-amber-500/50 relative overflow-hidden bg-scanlines">
+          <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded bg-amber-500 text-slate-950 font-black text-xs">VAR</span>
+              <span class="text-xs font-bold text-white uppercase tracking-wider">Cabine de Revisão Oficial</span>
+            </div>
+            <span class="text-xs text-amber-400 font-mono animate-pulse">● REPLAY EM SLOW-MOTION</span>
+          </div>
+
+          <!-- Video Replay Simulation Frame -->
+          <div class="w-full h-44 sm:h-56 bg-slate-900 rounded-lg border border-slate-800 flex flex-col items-center justify-center relative overflow-hidden p-4 text-center">
+            <div id="var-animation-canvas" class="flex flex-col items-center gap-3">
+              <div class="relative w-24 h-24 flex items-center justify-center">
+                <div class="absolute inset-0 rounded-full border-4 border-amber-500/30 animate-ping"></div>
+                <i class="fa-solid fa-tv text-5xl text-amber-400"></i>
+              </div>
+              <p id="var-replay-status" class="text-xs font-semibold text-slate-300">Analisando ângulo de câmera lateral (Câmera 02)...</p>
+            </div>
+
+            <!-- Cam Angle Tags -->
+            <div class="absolute bottom-2 left-2 flex gap-1">
+              <span class="px-2 py-0.5 bg-slate-800 text-[10px] text-slate-300 rounded font-mono">CAM 1 - Zoom</span>
+              <span class="px-2 py-0.5 bg-amber-500/20 border border-amber-500/30 text-[10px] text-amber-400 rounded font-mono">CAM 2 - Linha de Fundo</span>
+            </div>
+          </div>
+
+          <div class="flex justify-between items-center">
+            <p id="var-conclusion" class="text-xs text-slate-300 italic">Analise com atenção a imagem do VAR antes de tomar sua decisão final.</p>
+            <div id="var-final-actions" class="flex gap-2">
+              <!-- Actions rendered dynamically after VAR analysis -->
+            </div>
+          </div>
+        </div>
+
+        <!-- PLAYER CONFRONTATION SIMULATOR (Hidden by default) -->
+        <div id="confrontation-screen" class="hidden flex-col gap-3 bg-rose-950/30 border border-rose-800/50 p-4 rounded-xl">
+          <div class="flex items-center gap-2 text-rose-400 font-bold text-sm">
+            <i class="fa-solid fa-users-rectangle text-lg"></i>
+            <span>Pressão dos Jogadores / Confusão no Gramado!</span>
+          </div>
+          <p id="confrontation-text" class="text-xs text-slate-300">
+            Os jogadores cercam você agressivamente contestando a marcação! Como você impõe sua autoridade?
+          </p>
+          <div id="confrontation-options" class="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-1">
+            <!-- Buttons rendered via JS -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- MATCH FEED / LOG -->
+      <div class="bg-slate-950/60 rounded-xl border border-slate-800 p-4 flex flex-col gap-2">
+        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+          <i class="fa-solid fa-list-ul text-blue-400"></i> Relatório da Partida (Súmula em Tempo Real)
+        </h4>
+        <div id="match-log" class="h-28 overflow-y-auto flex flex-col gap-1.5 text-xs text-slate-300 pr-1">
+          <div class="text-slate-500 italic">Nenhum evento registrado ainda.</div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- MODAL WINDOW (Shop, Training, Career, Post-Match Report) -->
+  <div id="modal-overlay" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-cardBg border border-cardBorder w-full max-w-xl rounded-2xl p-6 shadow-2xl relative flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
+      
+      <!-- Close Button -->
+      <button onclick="closeModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <!-- Modal Header -->
+      <div class="border-b border-cardBorder pb-3">
+        <h2 id="modal-title" class="text-lg font-bold text-white flex items-center gap-2">
+          Título do Modal
+        </h2>
+      </div>
+
+      <!-- Modal Body Dynamic Container -->
+      <div id="modal-body" class="flex flex-col gap-4">
+        <!-- Content dynamically injected -->
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME LOGIC JAVASCRIPT -->
+  <script>
+    /* ==========================================================================
+       GAME STATE & GLOBAL CONFIG
+       ========================================================================== */
+    const gameState = {
+      referee: {
+        name: "Carlos Silva",
+        divisionIndex: 0, // 0: Série C, 1: Série B, 2: Série A, 3: Quadro FIFA
+        divisions: ["Série C", "Série B", "Série A", "FIFA Badge"],
+        rating: 75.0,
+        matchesRefereed: 0,
+        correctDecisions: 0,
+        totalDecisions: 0,
+        wallet: 1500,
+        varSpeedBoost: 0, // Reduces VAR analysis time
+        pressureResist: 0, // Helps keep control during confrontation
+      },
+      currentMatch: null,
+      timerInterval: null,
+      decisionCountdownInterval: null,
+      countdownSeconds: 10,
+    };
+
+    const TEAMS = [
+      { name: "Anápolis", shield: "ANA", color: "bg-blue-900 border-blue-600" },
+      { name: "Aparecidense", shield: "APA", color: "bg-red-700 border-red-500" },
+      { name: "Goiás", shield: "GOI", color: "bg-emerald-800 border-emerald-500" },
+      { name: "Vila Nova", shield: "VIL", color: "bg-red-600 border-red-400" },
+      { name: "Atlético GO", shield: "ACG", color: "bg-red-900 border-black" },
+      { name: "Cráneo FC", shield: "CRA", color: "bg-purple-900 border-purple-500" },
+      { name: "Paysandu", shield: "PAY", color: "bg-sky-600 border-sky-300" },
+      { name: "Remo", shield: "REM", color: "bg-navy-900 border-blue-400" },
+    ];
+
+    const SHOP_ITEMS = [
+      { id: "whistle_fox40", name: "Apito Fox 40 Sonik Blast", price: 300, desc: "Aumenta o controle sobre os jogadores em 10%.", type: "control", bonus: 10, bought: false },
+      { id: "spray_referee", name: "Spray Comportamental de Barreira", price: 500, desc: "Evita reclamações em faltas perto da área.", type: "pressure", bonus: 15, bought: false },
+      { id: "var_headset", name: "Headset VAR Alta Definição", price: 1200, desc: "Acelera a análise das câmeras do VAR em 50%.", type: "var", bonus: 50, bought: false },
+      { id: "card_custom", name: "Cartões de Alta Visibilidade", price: 400, desc: "Reduz a tensão das partidas após aplicação de cartão.", type: "control", bonus: 5, bought: false },
+    ];
+
+    const COURSES = [
+      { id: "cbf_rules", name: "Reciclagem de Regras da FIFA/CBF", price: 600, ratingGain: 2.5, desc: "Melhora sua nota base de avaliação da CBF." },
+      { id: "var_cert", name: "Treinamento Intensivo de VAR", price: 1000, ratingGain: 4.0, desc: "Certificação oficial para operar o VAR com precisão." },
+    ];
+
+    const INCIDENTS_DATABASE = [
+      {
+        title: "Possível Pênalti por Carrinho Dentro da Área",
+        desc: "O atacante dribla o zagueiro e cai na área após dividida rápida. O zagueiro alega que tocou somente na bola!",
+        hasVar: true,
+        correctChoice: "var", // VAR reveals clean tackle or penalty
+        varTruth: "penalty", // VAR reveals penalty
+        varDescText: "Imagens em slow-motion mostram que o zagueiro atinge a trava da chuteira na canela do atacante antes de tocar a bola.",
+        options: [
+          { text: "Nada a Declarar / Segue o Jogo", id: "no_foul", correct: false, tensionDelta: 15, controlDelta: -10 },
+          { text: "Falta Fora da Área + Cartão Amarelo", id: "foul_outside", correct: false, tensionDelta: 10, controlDelta: -5 },
+          { text: "Pênalti + Cartão Amarelo", id: "penalty_yellow", correct: false, tensionDelta: 5, controlDelta: 0 },
+          { text: "Consultar Monitor do VAR 📺", id: "call_var", isVarTrigger: true, correct: true }
+        ]
+      },
+      {
+        title: "Entrada Solada na Canela no Meio Campo",
+        desc: "Jogador dividiu de trava levantada no meio do campo atingindo a canela do adversário.",
+        hasVar: true,
+        correctChoice: "red_card",
+        varTruth: "red_card",
+        varDescText: "O jogador assume o risco de lesão grave acertando em cheio com força excessiva.",
+        options: [
+          { text: "Apenas Falta Simples", id: "simple_foul", correct: false, tensionDelta: 20, controlDelta: -15 },
+          { text: "Cartão Amarelo", id: "yellow_card", correct: false, tensionDelta: 10, controlDelta: -5 },
+          { text: "Cartão Vermelho Direto 🟥", id: "red_card", correct: true, tensionDelta: -5, controlDelta: 10 },
+          { text: "Consultar VAR 📺", id: "call_var", isVarTrigger: true, correct: true }
+        ]
+      },
+      {
+        title: "Gol de Cabeça com Dúvida de Impedimento",
+        desc: "Cruzamento na área e gol de cabeça! O assistente ficou na dúvida se o atacante estava adiantado.",
+        hasVar: true,
+        correctChoice: "call_var",
+        varTruth: "onside",
+        varDescText: "As linhas virtuais traçadas pelo VAR mostram o ombro do zagueiro dando condição de jogo por 3cm!",
+        options: [
+          { text: "Anular Gol por Impedimento", id: "offside", correct: false, tensionDelta: 15, controlDelta: -5 },
+          { text: "Validar o Gol Imediatamente", id: "goal", correct: false, tensionDelta: 10, controlDelta: 0 },
+          { text: "Checar Linhas Tridimensionais no VAR 📺", id: "call_var", isVarTrigger: true, correct: true }
+        ]
+      },
+      {
+        title: "Mão na Bola / Toque Incidental",
+        desc: "Remate forte da entrada da área bate no braço do defensor que estava colado ao corpo.",
+        hasVar: false,
+        correctChoice: "play_on",
+        options: [
+          { text: "Pênalti para o Atacante", id: "penalty", correct: false, tensionDelta: 25, controlDelta: -15 },
+          { text: "Braço em Posição Natural / Segue o Jogo", id: "play_on", correct: true, tensionDelta: -5, controlDelta: 5 },
+          { text: "Cartão Amarelo por Mão Intencional", id: "yellow_hand", correct: false, tensionDelta: 20, controlDelta: -10 }
+        ]
+      },
+      {
+        title: "Simulação Clara Dentro da Área",
+        desc: "O atacante dobra os joelhos e se joga sem ser tocado pelo goleiro tentando cavar o pênalti!",
+        hasVar: false,
+        correctChoice: "yellow_simulation",
+        options: [
+          { text: "Marcar Pênalti", id: "penalty", correct: false, tensionDelta: 30, controlDelta: -20 },
+          { text: "Cartão Amarelo por Simulação 🟨", id: "yellow_simulation", correct: true, tensionDelta: -10, controlDelta: 15 },
+          { text: "Mandar Levantar sem Cartão", id: "play_on", correct: false, tensionDelta: 10, controlDelta: -5 }
+        ]
+      }
+    ];
+
+    /* ==========================================================================
+       GAME ENGINE & MATCH MANAGEMENT
+       ========================================================================== */
+    
+    function updateHeaderUI() {
+      document.getElementById("ref-name").textContent = gameState.referee.name;
+      document.getElementById("ref-badge").textContent = gameState.referee.divisions[gameState.referee.divisionIndex];
+      document.getElementById("stat-wallet").textContent = `R$ ${gameState.referee.wallet.toLocaleString()}`;
+      document.getElementById("stat-rating").textContent = gameState.referee.rating.toFixed(1);
+      
+      const acc = gameState.referee.totalDecisions > 0 
+        ? ((gameState.referee.correctDecisions / gameState.referee.totalDecisions) * 100).toFixed(0) 
+        : 100;
+      document.getElementById("stat-accuracy").textContent = `${acc}%`;
+      document.getElementById("stat-matches").textContent = gameState.referee.matchesRefereed;
+    }
+
+    function startNewMatch() {
+      if (gameState.currentMatch && gameState.currentMatch.active) {
+        alert("Já existe uma partida em andamento!");
+        return;
+      }
+
+      // Pick two distinct teams
+      const homeTeam = TEAMS[Math.floor(Math.random() * TEAMS.length)];
+      let awayTeam = TEAMS[Math.floor(Math.random() * TEAMS.length)];
+      while (awayTeam.name === homeTeam.name) {
+        awayTeam = TEAMS[Math.floor(Math.random() * TEAMS.length)];
+      }
+
+      gameState.currentMatch = {
+        active: true,
+        home: homeTeam,
+        away: awayTeam,
+        scoreHome: 0,
+        scoreAway: 0,
+        minute: 0,
+        tension: 20,
+        control: 90 + gameState.referee.pressureResist,
+        incidentsTriggered: 0,
+        correctInMatch: 0,
+        totalInMatch: 0,
+        logs: [],
+        currentIncident: null,
+      };
+
+      // UI setup for match screen
+      document.getElementById("home-name").textContent = homeTeam.name;
+      document.getElementById("home-shield").textContent = homeTeam.shield;
+      document.getElementById("home-shield").className = `w-10 h-10 rounded-full flex items-center justify-center font-black text-white text-sm shadow ${homeTeam.color}`;
+
+      document.getElementById("away-name").textContent = awayTeam.name;
+      document.getElementById("away-shield").textContent = awayTeam.shield;
+      document.getElementById("away-shield").className = `w-10 h-10 rounded-full flex items-center justify-center font-black text-white text-sm shadow ${awayTeam.color}`;
+
+      document.getElementById("score-home").textContent = "0";
+      document.getElementById("score-away").textContent = "0";
+      document.getElementById("idle-message").classList.add("hidden");
+      document.getElementById("active-incident").classList.remove("hidden");
+      document.getElementById("var-screen").classList.add("hidden");
+      document.getElementById("confrontation-screen").classList.add("hidden");
+
+      document.getElementById("match-log").innerHTML = "";
+      logMatchEvent(`Apito Inicial! A partida entre ${homeTeam.name} e ${awayTeam.name} começou.`);
+
+      // Enable match timer
+      clearInterval(gameState.timerInterval);
+      gameState.timerInterval = setInterval(matchTick, 1000); // 1s = ~2 game mins
+    }
+
+    function matchTick() {
+      if (!gameState.currentMatch || !gameState.currentMatch.active) return;
+
+      const m = gameState.currentMatch;
+
+      // Skip timer ticking if an incident is waiting for decision
+      if (m.currentIncident) return;
+
+      m.minute += Math.floor(Math.random() * 4) + 2;
+
+      if (m.minute > 90) {
+        finishMatch();
+        return;
+      }
+
+      // Update timer UI
+      const tempoStr = m.minute <= 45 ? "1º Tempo" : "2º Tempo";
+      document.getElementById("match-timer").textContent = `${m.minute}' - ${tempoStr}`;
+
+      // Trigger Incidents at specific time windows
+      if (m.minute > 15 && m.incidentsTriggered === 0) {
+        triggerIncident();
+      } else if (m.minute > 40 && m.incidentsTriggered === 1) {
+        triggerIncident();
+      } else if (m.minute > 65 && m.incidentsTriggered === 2) {
+        triggerIncident();
+      } else if (m.minute > 82 && m.incidentsTriggered === 3) {
+        triggerIncident();
+      }
+
+      updateMatchMetersUI();
+    }
+
+    function updateMatchMetersUI() {
+      if (!gameState.currentMatch) return;
+      const m = gameState.currentMatch;
+
+      // Clamp values
+      m.tension = Math.max(0, Math.min(100, m.tension));
+      m.control = Math.max(0, Math.min(100, m.control));
+
+      document.getElementById("bar-tension").style.width = `${m.tension}%`;
+      document.getElementById("bar-control").style.width = `${m.control}%`;
+
+      document.getElementById("label-tension").textContent = m.tension > 70 ? "Alta Crítica!" : (m.tension > 40 ? "Moderada" : "Baixa");
+      document.getElementById("label-control").textContent = m.control > 70 ? "Excelente" : (m.control > 40 ? "Sob Risco" : "Fora de Controle!");
+    }
+
+    function logMatchEvent(msg) {
+      if (!gameState.currentMatch) return;
+      const logContainer = document.getElementById("match-log");
+      const min = gameState.currentMatch.minute;
+      const entry = document.createElement("div");
+      entry.className = "flex items-start gap-2 border-b border-slate-900 pb-1";
+      entry.innerHTML = `<span class="font-bold text-amber-400 font-mono">${min}'</span> <span>${msg}</span>`;
+      logContainer.prepend(entry);
+    }
+
+    /* ==========================================================================
+       INCIDENTS & DECISION LOGIC
+       ========================================================================== */
+
+    function triggerIncident() {
+      const m = gameState.currentMatch;
+      m.incidentsTriggered++;
+
+      // Pick random incident
+      const template = INCIDENTS_DATABASE[Math.floor(Math.random() * INCIDENTS_DATABASE.length)];
+      m.currentIncident = { ...template, minute: m.minute };
+
+      // Render UI
+      document.getElementById("incident-min").textContent = `${m.minute}'`;
+      document.getElementById("incident-title").textContent = template.title;
+      document.getElementById("incident-desc").textContent = template.desc;
+
+      const optionsGrid = document.getElementById("decision-options");
+      optionsGrid.innerHTML = "";
+
+      template.options.forEach(opt => {
+        const btn = document.createElement("button");
+        btn.className = "p-3 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-left text-slate-200 flex items-center justify-between transition hover:border-amber-500/50 shadow";
+        
+        let icon = '<i class="fa-solid fa-gavel text-slate-400"></i>';
+        if (opt.isVarTrigger) icon = '<i class="fa-solid fa-tv text-amber-400 animate-pulse"></i>';
+        
+        btn.innerHTML = `<span>${opt.text}</span> ${icon}`;
+        btn.onclick = () => handleDecision(opt);
+        optionsGrid.appendChild(btn);
+      });
+
+      // Show options panel, hide screens
+      document.getElementById("active-incident").classList.remove("hidden");
+      document.getElementById("var-screen").classList.add("hidden");
+      document.getElementById("confrontation-screen").classList.add("hidden");
+
+      // Start Decision Countdown (10 seconds)
+      startDecisionTimer();
+    }
+
+    function startDecisionTimer() {
+      clearInterval(gameState.decisionCountdownInterval);
+      gameState.countdownSeconds = 10;
+      const timerDisplay = document.getElementById("decision-timer");
+      timerDisplay.textContent = `${gameState.countdownSeconds}s`;
+
+      gameState.decisionCountdownInterval = setInterval(() => {
+        gameState.countdownSeconds--;
+        timerDisplay.textContent = `${gameState.countdownSeconds}s`;
+
+        if (gameState.countdownSeconds <= 0) {
+          clearInterval(gameState.decisionCountdownInterval);
+          // Timeout = missed decision / hesitate
+          handleDecisionTimeout();
+        }
+      }, 1000);
+    }
+
+    function stopDecisionTimer() {
+      clearInterval(gameState.decisionCountdownInterval);
+    }
+
+    function handleDecisionTimeout() {
+      logMatchEvent("⚠️ Árbitro hesitou na tomada de decisão e gerou revolta no gramado!");
+      if (gameState.currentMatch) {
+        gameState.currentMatch.tension += 20;
+        gameState.currentMatch.control -= 15;
+      }
+      // Force pick first option (wrong choice penalty)
+      const inc = gameState.currentMatch.currentIncident;
+      handleDecision(inc.options[0]);
+    }
+
+    function handleDecision(option) {
+      stopDecisionTimer();
+      const m = gameState.currentMatch;
+      const inc = m.currentIncident;
+
+      if (option.isVarTrigger) {
+        // Trigger VAR Simulator
+        runVarSimulator(inc);
+        return;
+      }
+
+      // Standard Decision Processing
+      m.totalInMatch++;
+      gameState.referee.totalDecisions++;
+
+      const isCorrect = option.correct;
+
+      if (isCorrect) {
+        m.correctInMatch++;
+        gameState.referee.correctDecisions++;
+        m.control += 5;
+        m.tension -= 5;
+        logMatchEvent(`Decisão Correta! (${option.text}). A partida segue sob controle.`);
+      } else {
+        m.control -= 15;
+        m.tension += 15;
+        logMatchEvent(`❌ Decisão Incorreta! (${option.text}). Jogadores e comissão técnica protestam!`);
+      }
+
+      // Handle Goals in specific decisions
+      if (option.id === "penalty" || option.id === "penalty_yellow") {
+        if (Math.random() > 0.2) {
+          m.scoreHome++;
+          document.getElementById("score-home").textContent = m.scoreHome;
+          logMatchEvent("⚽ GOL DE PÊNALTI convertido com sucesso!");
+        } else {
+          logMatchEvent("🚫 PÊNALTI PERDIDO! Goleiro defendeu!");
+        }
+      }
+
+      updateMatchMetersUI();
+      updateHeaderUI();
+
+      // Check if high tension triggers confrontation screen
+      if (m.tension > 50 || !isCorrect) {
+        triggerConfrontation();
+      } else {
+        m.currentIncident = null;
+        document.getElementById("active-incident").classList.add("hidden");
+      }
+    }
+
+    /* ==========================================================================
+       VAR REPLAY MECHANIC
+       ========================================================================== */
+
+    function runVarSimulator(incident) {
+      document.getElementById("active-incident").classList.add("hidden");
+      document.getElementById("var-screen").classList.remove("hidden");
+
+      const statusText = document.getElementById("var-replay-status");
+      const actionBox = document.getElementById("var-final-actions");
+      const conclusionText = document.getElementById("var-conclusion");
+
+      statusText.textContent = "Conectando à sala do VAR em alta definição...";
+      actionBox.innerHTML = "";
+      conclusionText.textContent = "Revisando o lance nas câmeras angulares...";
+
+      let delay = 3500 - (gameState.referee.varSpeedBoost * 30);
+      delay = Math.max(1200, delay);
+
+      setTimeout(() => {
+        statusText.textContent = incident.varDescText;
+        conclusionText.textContent = "Conclusão do VAR pronta. Qual a sua decisão final?";
+
+        // Render Final VAR Choices
+        const confirmBtn = document.createElement("button");
+        confirmBtn.className = "px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 font-bold text-xs text-white shadow";
+        confirmBtn.textContent = "Confirmar Recomendação do VAR";
+        confirmBtn.onclick = () => {
+          document.getElementById("var-screen").classList.add("hidden");
+          const varOpt = { text: "Revisão no VAR Concluída", correct: true };
+          handleDecision(varOpt);
+        };
+
+        actionBox.appendChild(confirmBtn);
+      }, delay);
+    }
+
+    /* ==========================================================================
+       PLAYER CONFRONTATION MECHANIC
+       ========================================================================== */
+
+    function triggerConfrontation() {
+      document.getElementById("active-incident").classList.add("hidden");
+      document.getElementById("confrontation-screen").classList.remove("hidden");
+
+      const optionsGrid = document.getElementById("confrontation-options");
+      optionsGrid.innerHTML = "";
+
+      const styles = [
+        { name: "Explicar Calmamente", desc: "Evita cartões, exige alta autoridade.", type: "calm" },
+        { name: "Mostrar Cartão Amarelo 🟨", desc: "Acalma o protesto, aumenta a tensão.", type: "yellow" },
+        { name: "Ameaçar Expulsão 🟥", desc: "Firmeza total, reduz a confusão.", type: "red" }
+      ];
+
+      styles.forEach(st => {
+        const btn = document.createElement("button");
+        btn.className = "p-2.5 rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800 text-xs text-left text-slate-200 transition";
+        btn.innerHTML = `<span class="font-bold block text-white">${st.name}</span><span class="text-[10px] text-slate-400">${st.desc}</span>`;
+        btn.onclick = () => resolveConfrontation(st.type);
+        optionsGrid.appendChild(btn);
+      });
+    }
+
+    function resolveConfrontation(type) {
+      const m = gameState.currentMatch;
+      document.getElementById("confrontation-screen").classList.add("hidden");
+
+      if (type === "calm") {
+        logMatchEvent("🗣️ Você conversou calmamente com o capitão e acalmou os ânimos.");
+        m.control += 5;
+      } else if (type === "yellow") {
+        logMatchEvent("🟨 Cartão amarelo aplicado ao jogador por reclamação excessiva!");
+        m.control += 10;
+        m.tension -= 5;
+      } else {
+        logMatchEvent("🟥 Postura firme! Você ameaçou expulsão e isolou a área de decisão.");
+        m.control += 15;
+      }
+
+      updateMatchMetersUI();
+      m.currentIncident = null;
+    }
+
+    /* ==========================================================================
+       POST-MATCH & CAREER PROGRESSION
+       ========================================================================== */
+
+    function finishMatch() {
+      clearInterval(gameState.timerInterval);
+      stopDecisionTimer();
+
+      const m = gameState.currentMatch;
+      m.active = false;
+      gameState.referee.matchesRefereed++;
+
+      // Grade Calculation
+      const accRate = m.totalInMatch > 0 ? (m.correctInMatch / m.totalInMatch) : 1;
+      let grade = "A";
+      let ratingDelta = 1.5;
+      let payout = 1000 + (gameState.referee.divisionIndex * 500);
+
+      if (accRate < 0.5 || m.control < 40) {
+        grade = "F";
+        ratingDelta = -3.0;
+        payout = 400;
+      } else if (accRate < 0.75) {
+        grade = "C";
+        ratingDelta = 0.2;
+        payout = 700;
+      }
+
+      gameState.referee.rating = Math.max(50, Math.min(99.9, gameState.referee.rating + ratingDelta));
+      gameState.referee.wallet += payout;
+
+      // Division Promotion Check
+      let promotionText = "";
+      if (gameState.referee.rating >= 85 && gameState.referee.divisionIndex === 0) {
+        gameState.referee.divisionIndex = 1;
+        promotionText = "🎉 PARABÉNS! Você foi promovido para a SÉRIE B!";
+      } else if (gameState.referee.rating >= 92 && gameState.referee.divisionIndex === 1) {
+        gameState.referee.divisionIndex = 2;
+        promotionText = "🌟 INCRÍVEL! Promovido para o Quadro de Árbitros da SÉRIE A!";
+      } else if (gameState.referee.rating >= 97 && gameState.referee.divisionIndex === 2) {
+        gameState.referee.divisionIndex = 3;
+        promotionText = "🏆 ÉPICO! Você conquistou o ESCUDO FIFA!";
+      }
+
+      updateHeaderUI();
+
+      // Open Post-Match Report Modal
+      openModal('post_match', { grade, payout, ratingDelta, promotionText, m });
+      
+      // Reset incident panel
+      document.getElementById("active-incident").classList.add("hidden");
+      document.getElementById("idle-message").classList.remove("hidden");
+    }
+
+    /* ==========================================================================
+       MODAL SYSTEM (Shop, Rules Course, Stats, Post Match)
+       ========================================================================== */
+
+    function openModal(type, extraData = null) {
+      const modal = document.getElementById("modal-overlay");
+      const title = document.getElementById("modal-title");
+      const body = document.getElementById("modal-body");
+
+      modal.classList.remove("hidden");
+      body.innerHTML = "";
+
+      if (type === 'shop') {
+        title.innerHTML = `<i class="fa-solid fa-cart-shopping text-blue-400"></i> Loja de Equipamentos de Árbitro`;
+        
+        SHOP_ITEMS.forEach(item => {
+          const card = document.createElement("div");
+          card.className = "p-3 rounded-xl border border-slate-800 bg-slate-900/80 flex justify-between items-center";
+          card.innerHTML = `
+            <div>
+              <h4 class="font-bold text-sm text-white">${item.name}</h4>
+              <p class="text-xs text-slate-400">${item.desc}</p>
+              <span class="text-xs font-extrabold text-emerald-400 mt-1 block">R$ ${item.price}</span>
+            </div>
+            <button onclick="buyShopItem('${item.id}')" ${item.bought ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg ${item.bought ? 'bg-slate-800 text-slate-500' : 'bg-blue-600 hover:bg-blue-500 text-white'} text-xs font-bold transition">
+              ${item.bought ? 'Adquirido' : 'Comprar'}
+            </button>
+          `;
+          body.appendChild(card);
+        });
+      } 
+      else if (type === 'training') {
+        title.innerHTML = `<i class="fa-solid fa-graduation-cap text-amber-400"></i> Cursos & Reciclagem CBF`;
+        
+        COURSES.forEach(crs => {
+          const card = document.createElement("div");
+          card.className = "p-3 rounded-xl border border-slate-800 bg-slate-900/80 flex justify-between items-center";
+          card.innerHTML = `
+            <div>
+              <h4 class="font-bold text-sm text-white">${crs.name}</h4>
+              <p class="text-xs text-slate-400">${crs.desc}</p>
+              <span class="text-xs font-extrabold text-amber-400 mt-1 block">+${crs.ratingGain} Pontos de Avaliação | R$ ${crs.price}</span>
+            </div>
+            <button onclick="takeCourse('${crs.id}')" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-xs font-bold text-slate-950 transition">
+              Inscrever-se
+            </button>
+          `;
+          body.appendChild(card);
+        });
+      }
+      else if (type === 'career') {
+        title.innerHTML = `<i class="fa-solid fa-award text-emerald-400"></i> Relatório Geral da Carreira`;
+        body.innerHTML = `
+          <div class="grid grid-cols-2 gap-3 text-center">
+            <div class="bg-slate-900 p-3 rounded-lg border border-slate-800">
+              <span class="text-xs text-slate-400">Partidas Apitadas</span>
+              <h3 class="text-xl font-black text-white">${gameState.referee.matchesRefereed}</h3>
+            </div>
+            <div class="bg-slate-900 p-3 rounded-lg border border-slate-800">
+              <span class="text-xs text-slate-400">Decisões Corretas</span>
+              <h3 class="text-xl font-black text-emerald-400">${gameState.referee.correctDecisions} / ${gameState.referee.totalDecisions}</h3>
+            </div>
+          </div>
+          <div class="bg-slate-900 p-4 rounded-lg border border-slate-800 text-xs leading-relaxed text-slate-300">
+            <p><strong>Status na Comissão de Arbitragem:</strong> Você está atualmente atuando na categoria <strong>${gameState.referee.divisions[gameState.referee.divisionIndex]}</strong>. Mantenha sua taxa de acerto alta para ser escalado nas finais nacionais e receber o Escudo FIFA.</p>
+          </div>
+        `;
+      }
+      else if (type === 'post_match') {
+        const d = extraData;
+        title.innerHTML = `<i class="fa-solid fa-clipboard-check text-amber-400"></i> Avaliação do Observador CBF`;
+        body.innerHTML = `
+          <div class="flex flex-col items-center justify-center gap-2 py-2">
+            <div class="w-16 h-16 rounded-full bg-amber-500/20 border-2 border-amber-500 flex items-center justify-center font-black text-3xl text-amber-400 shadow">
+              ${d.grade}
+            </div>
+            <span class="text-xs font-bold text-slate-300">Nota da Atuação nesta Partida</span>
+          </div>
+
+          <div class="bg-slate-900 p-3.5 rounded-xl border border-slate-800 flex flex-col gap-2 text-xs">
+            <div class="flex justify-between">
+              <span class="text-slate-400">Pagamento pelo Jogo:</span>
+              <span class="font-bold text-emerald-400">+ R$ ${d.payout}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-400">Impacto na Avaliação CBF:</span>
+              <span class="font-bold ${d.ratingDelta >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${d.ratingDelta >= 0 ? '+' : ''}${d.ratingDelta.toFixed(1)} pts</span>
+            </div>
+            <div class="flex justify-between border-t border-slate-800 pt-1.5">
+              <span class="text-slate-400">Decisões Acertadas:</span>
+              <span class="font-bold text-white">${d.m.correctInMatch} de ${d.m.totalInMatch}</span>
+            </div>
+          </div>
+
+          ${d.promotionText ? `<div class="p-3 bg-amber-500/20 border border-amber-500/40 rounded-xl text-center text-xs font-bold text-amber-300">${d.promotionText}</div>` : ''}
+
+          <button onclick="closeModal()" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold text-xs text-white shadow">
+            Confirmar e Retornar ao Painel
+          </button>
+        `;
+      }
+    }
+
+    function closeModal() {
+      document.getElementById("modal-overlay").classList.add("hidden");
+    }
+
+    function buyShopItem(itemId) {
+      const item = SHOP_ITEMS.find(i => i.id === itemId);
+      if (!item || item.bought) return;
+
+      if (gameState.referee.wallet < item.price) {
+        alert("Saldo insuficiente na carteira!");
+        return;
+      }
+
+      gameState.referee.wallet -= item.price;
+      item.bought = true;
+
+      if (item.type === "var") gameState.referee.varSpeedBoost += item.bonus;
+      if (item.type === "pressure") gameState.referee.pressureResist += item.bonus;
+
+      updateHeaderUI();
+      openModal('shop'); // Refresh UI
+    }
+
+    function takeCourse(courseId) {
+      const course = COURSES.find(c => c.id === courseId);
+      if (!course) return;
+
+      if (gameState.referee.wallet < course.price) {
+        alert("Saldo insuficiente para pagar o curso!");
+        return;
+      }
+
+      gameState.referee.wallet -= course.price;
+      gameState.referee.rating = Math.min(99.9, gameState.referee.rating + course.ratingGain);
+
+      updateHeaderUI();
+      alert(`Você concluiu o curso "${course.name}" com sucesso! Sua nota subiu.`);
+      closeModal();
+    }
+
+    // Initialize UI on Load
+    window.onload = () => {
+      updateHeaderUI();
+    };
+  </script>
+</body>
+</html>
